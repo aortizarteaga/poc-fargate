@@ -49,7 +49,7 @@ Resources:
     Condition: EnableResources
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/vpc.yml
+      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/vpc.yml
       Parameters:
         Name: !Ref AWS::StackName
         EnvironmentName: !Ref EnvironmentName
@@ -58,7 +58,7 @@ Resources:
     Condition: EnableResources
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/roles.yml
+      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/roles.yml
       Parameters:
         Name: !Ref AWS::StackName
         EnvironmentName: !Ref EnvironmentName
@@ -67,23 +67,12 @@ Resources:
     Condition: EnableResources
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/securitygroup.yml
+      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/securitygroup.yml
       Parameters:
         Name: !Ref AWS::StackName
         EnvironmentName: !Ref EnvironmentName
         Vpc: !GetAtt VPC.Outputs.VpcId 
   
-  # Efs:
-  #   Condition: EnableResources
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/efs.yml
-  #     Parameters:
-  #       Name: !Ref AWS::StackName
-  #       EnvironmentName: !Ref EnvironmentName
-  #       Vpc: !GetAtt VPC.Outputs.VpcId
-  #       PublicSubnetOne: !GetAtt VPC.Outputs.PublicSubnetOne
-
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
@@ -97,7 +86,7 @@ Resources:
       - RolesCluster
       - VPC
     Properties:
-      TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/autoscaling.yml
+      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/autoscaling.yml
       Parameters:
         Name: !Ref AWS::StackName
         EnvironmentName: !Ref EnvironmentName
