@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SG cloudformation. SG permission access to cluster ECS.
+
+Parameters:
+  Name:
+    Type: String
+    Description: "A friendly name that will be used for roles."
+  EnvironmentName:
+    Type: String
+    Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
+  Vpc:
+    Type: String
+    Description: "A friendly name that will be used for roles."
+
+Resources:
+  # A security group for the containers we will run in ECS.
+  # Rules are added to this security group based on what ingress you
+  # add for the cluster.
+  ContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the ECS hosts that run containers
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref ALBSecurityGroup
+          IpProtocol: -1
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref 'Vpc'
+      Tags:
+        - 
+         Key: Environment
+         Value:  !Sub ${EnvironmentName}
+        - 
+         Key: Name
+         Value: !Sub ${Name}-container-sg
+        - 
+         Key: Project
+         Value: !Sub ${Name}-${EnvironmentName}
+
+  #ExampleSecurityGroup
+  ALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Security group for ec2 access
+      VpcId: !Ref 'Vpc'
+      Tags:
+        - 
+         Key: Environment
+         Value:  !Sub ${EnvironmentName}
+        - 
+         Key: Name
+         Value: !Sub ${Name}-alb-sg
+        - 
+         Key: Project
+         Value: !Sub ${Name}-${EnvironmentName}
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+
+Outputs:
+  ContainerSecurityGroup:
+    Description: A security group used to allow containers to receive traffic
+    Value: !Ref 'ContainerSecurityGroup'
+    Export:
+      Name: !Sub ${EnvironmentName}:ContainerSecurityGroup
+  ALBSecurityGroup:
+    Description: A security group used to allow connection alb to container
+    Value: !Ref 'ALBSecurityGroup'
+    Export:
+      Name: !Sub ${EnvironmentName}:ALBSecurityGroup

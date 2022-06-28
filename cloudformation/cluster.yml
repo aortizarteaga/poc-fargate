@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EC2 ECS cluster running containers in a private subnet. Supports
+             public facing load balancers, private internal load balancers, and
+             both internal and external service discovery namespaces.
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: dev
+    Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
+  InstanceType:
+    Type: String
+    Default: t2.small
+    Description: Class of EC2 instance used to host containers. Choose t2 for testing, m5 for general purpose, c5 for CPU intensive services, and r5 for memory intensive services
+    AllowedValues: [ t2.micro, t2.small, t2.medium, t2.large, t2.xlarge, t2.2xlarge,
+     m5.large, m5.xlarge, m5.2large, m5.4xlarge, m5.12xlarge, m5.24large,
+     c5.large, c5.xlarge, c5.2xlarge, c5.4xlarge, c5.9xlarge, c5.18xlarge,
+     r5.large, r5.xlarge, r5.2xlarge, r5.4xlarge, r5.12xlarge, r5.24xlarge ]
+    ConstraintDescription: Please choose a valid instance type.
+  DesiredCapacity:
+    Type: Number
+    Default: '1'
+    Description: Number of EC2 instances to launch in your ECS cluster.
+  MaxSize:
+    Type: Number
+    Default: '2'
+    Description: Maximum number of EC2 instances that can be launched in your ECS cluster.
+  ECSAMI:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
+    Description: The Amazon Machine Image ID used for the cluster, leave it as the default value to get the latest AMI
+  EnableBuildReosurces:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+    Description: Enable build
+    Type: String
+
+Conditions:
+  EnableResources: !Equals
+    - !Ref EnableBuildReosurces
+    - 'true'
+
+# Transform:
+#   - 'AWS::CodeDeployBlueGreen'
+
+Resources:
+  VPC:
+    Condition: EnableResources
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/vpc.yml
+      Parameters:
+        Name: !Ref AWS::StackName
+        EnvironmentName: !Ref EnvironmentName
+
+  RolesCluster:
+    Condition: EnableResources
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/roles.yml
+      Parameters:
+        Name: !Ref AWS::StackName
+        EnvironmentName: !Ref EnvironmentName
+
+  SecurityGroups:
+    Condition: EnableResources
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/securitygroup.yml
+      Parameters:
+        Name: !Ref AWS::StackName
+        EnvironmentName: !Ref EnvironmentName
+        Vpc: !GetAtt VPC.Outputs.VpcId 
+  
+  # Efs:
+  #   Condition: EnableResources
+  #   Type: AWS::CloudFormation::Stack
+  #   Properties:
+  #     TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/efs.yml
+  #     Parameters:
+  #       Name: !Ref AWS::StackName
+  #       EnvironmentName: !Ref EnvironmentName
+  #       Vpc: !GetAtt VPC.Outputs.VpcId
+  #       PublicSubnetOne: !GetAtt VPC.Outputs.PublicSubnetOne
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}-${EnvironmentName}
+
+  Autoscaling:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - ECSCluster
+      - SecurityGroups
+      - RolesCluster
+      - VPC
+    Properties:
+      TemplateURL: !Sub https://testyamlvelocity.s3-us-west-2.amazonaws.com/templates/autoscaling.yml
+      Parameters:
+        Name: !Ref AWS::StackName
+        EnvironmentName: !Ref EnvironmentName
+        ECSCluster: !Ref ECSCluster
+        ContainerSecurityGroup: !GetAtt SecurityGroups.Outputs.ContainerSecurityGroup
+        EC2Role: !GetAtt RolesCluster.Outputs.EC2RoleName
+        PrivateSubnetOne: !GetAtt VPC.Outputs.PrivateSubnetOne
+        PrivateSubnetTwo: !GetAtt VPC.Outputs.PrivateSubnetTwo
+        PrivateSubnetThree: !GetAtt VPC.Outputs.PrivateSubnetThree
+        ECSAMI: !Ref ECSAMI
+        InstanceType: !Ref InstanceType
+        MaxSize: !Ref MaxSize
+        DesiredCapacity: !Ref DesiredCapacity
+
+Outputs:
+  VpcId:
+    Description: The ID of the VPC that this stack is deployed in
+    Value: !GetAtt VPC.Outputs.VpcId
+    Export:
+      Name: !Sub ${EnvironmentName}:VpcId1
+  PublicSubnetOne:
+    Description: Public subnet one
+    Value: !GetAtt VPC.Outputs.PublicSubnetOne
+    Export:
+      Name: !Sub ${EnvironmentName}:PublicSubnetOne1
+  PublicSubnetTwo:
+    Description: Public subnet two
+    Value: !GetAtt VPC.Outputs.PublicSubnetTwo
+    Export:
+      Name: !Sub ${EnvironmentName}:PublicSubnetTwo1
+  ECSCluster:
+    Description: ECS Name Cluster
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub ${EnvironmentName}:ECSCluster1
+  ALBSecurityGroup:
+    Description: A security group used to allow connection alb to container
+    Value: !GetAtt SecurityGroups.Outputs.ALBSecurityGroup
+    Export:
+      Name: !Sub ${EnvironmentName}:ALBSecurityGroup1
+  Name:
+    Description: Stack Name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${EnvironmentName}:Name1
+  ECSTaskExecutionRoleName:
+    Description: The ARN of the ECS role
+    Value: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRole
+    Export:
+      Name: !Sub ${EnvironmentName}:ECSTaskExecutionRole1

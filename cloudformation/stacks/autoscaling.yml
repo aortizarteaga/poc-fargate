@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ASG cloudformation. This launches the actual EC2 instances that will register themselves as members of the cluster, and run the docker containers.
+
+Parameters:
+  Name:
+    Type: String
+    Description: "A friendly name that will be used for ASG."
+  EnvironmentName:
+    Type: String
+    Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
+  ECSCluster:
+    Type: String
+    Description: "A friendly name that will be used for ECS."
+  ContainerSecurityGroup:
+    Type: String
+    Description: "A friendly name that will be used for SG to containers."
+  EC2Role:
+    Type: String
+    Description: "A friendly name that will be used for Role EC2."
+  PrivateSubnetOne:
+    Type: String
+    Description: "Private Ip."
+  PrivateSubnetTwo:
+    Type: String
+    Description: "Private Ip."
+  PrivateSubnetThree:
+    Type: String
+    Description: "Private Ip."
+  ECSAMI:
+    Type: String
+    Description: "AMI for ECS."
+  InstanceType:
+    Type: String
+    Description: "type ec2 for ECS."
+  MaxSize:
+    Type: Number
+    Description: "Max containers."
+  DesiredCapacity:
+    Type: Number
+    Description: "Desired containers."
+
+Resources:
+  # Autoscaling group. This launches the actual EC2 instances that will register
+  # themselves as members of the cluster, and run the docker containers.
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnetOne
+        - !Ref PrivateSubnetTwo
+        - !Ref PrivateSubnetThree
+      LaunchConfigurationName: !Ref 'ContainerInstances'
+      MinSize: '1'
+      MaxSize: !Ref 'MaxSize'
+      DesiredCapacity: !Ref 'DesiredCapacity'
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: 'true'
+  ContainerInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref 'ECSAMI'
+      SecurityGroups: [!Ref 'ContainerSecurityGroup']
+      InstanceType: !Ref 'InstanceType'
+      IamInstanceProfile: !Ref 'EC2InstanceProfile'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref 'EC2Role']
