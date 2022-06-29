@@ -41,9 +41,6 @@ Conditions:
     - !Ref EnableBuildReosurces
     - 'true'
 
-# Transform:
-#   - 'AWS::CodeDeployBlueGreen'
-
 Resources:
   VPC:
     Condition: EnableResources
@@ -77,29 +74,6 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub ${AWS::StackName}-${EnvironmentName}
-
-  Autoscaling:
-    Type: AWS::CloudFormation::Stack
-    DependsOn:
-      - ECSCluster
-      - SecurityGroups
-      - RolesCluster
-      - VPC
-    Properties:
-      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/autoscaling.yml
-      Parameters:
-        Name: !Ref AWS::StackName
-        EnvironmentName: !Ref EnvironmentName
-        ECSCluster: !Ref ECSCluster
-        ContainerSecurityGroup: !GetAtt SecurityGroups.Outputs.ContainerSecurityGroup
-        EC2Role: !GetAtt RolesCluster.Outputs.EC2RoleName
-        PrivateSubnetOne: !GetAtt VPC.Outputs.PrivateSubnetOne
-        PrivateSubnetTwo: !GetAtt VPC.Outputs.PrivateSubnetTwo
-        PrivateSubnetThree: !GetAtt VPC.Outputs.PrivateSubnetThree
-        ECSAMI: !Ref ECSAMI
-        InstanceType: !Ref InstanceType
-        MaxSize: !Ref MaxSize
-        DesiredCapacity: !Ref DesiredCapacity
 
 Outputs:
   VpcId:

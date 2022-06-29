@@ -10,86 +10,6 @@ Parameters:
     Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
 
 Resources:
-  # A role used to allow AWS Autoscaling to inspect stats and adjust scalable targets
-  # on your AWS account
-  AutoscalingRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub "${Name}AutoscalingRole"
-      Tags:
-        - 
-         Key: Environment
-         Value:  !Sub ${EnvironmentName}
-        - 
-         Key: Name
-         Value: !Sub ${Name}-AutoscalingRole
-        - 
-         Key: Project
-         Value: !Sub ${Name}-${EnvironmentName}
-      AssumeRolePolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service: [application-autoscaling.amazonaws.com]
-          Action: ['sts:AssumeRole']
-      Path: /
-      Policies:
-      - PolicyName: !Sub "service-autoscaling-${Name}"
-        PolicyDocument:
-          Statement:
-          - Effect: Allow
-            Action:
-              - 'application-autoscaling:*'
-              - 'cloudwatch:DescribeAlarms'
-              - 'cloudwatch:PutMetricAlarm'
-              - 'ecs:DescribeServices'
-              - 'ecs:UpdateService'
-            Resource: '*'
-
-  # Role for the EC2 hosts. This allows the ECS agent on the EC2 hosts
-  # to communicate with the ECS control plane, as well as download the docker
-  # images from ECR to run on your host.
-  EC2Role:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub "${Name}EC2Role"
-      Tags:
-        - 
-         Key: Environment
-         Value:  !Sub ${EnvironmentName}
-        - 
-         Key: Name
-         Value: !Sub ${Name}-EC2Role
-        - 
-         Key: Project
-         Value: !Sub ${Name}-${EnvironmentName}
-      AssumeRolePolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service: [ec2.amazonaws.com]
-          Action: ['sts:AssumeRole']
-      Path: /
-      Policies:
-      - PolicyName: !Sub ecs-service-${Name}
-        PolicyDocument:
-          Statement:
-          - Effect: Allow
-            Action:
-              - 'ecs:CreateCluster'
-              - 'ecs:DeregisterContainerInstance'
-              - 'ecs:DiscoverPollEndpoint'
-              - 'ecs:Poll'
-              - 'ecs:RegisterContainerInstance'
-              - 'ecs:StartTelemetrySession'
-              - 'ecs:Submit*'
-              - 'logs:CreateLogStream'
-              - 'logs:PutLogEvents'
-              - 'ecr:GetAuthorizationToken'
-              - 'ecr:BatchGetImage'
-              - 'ecr:GetDownloadUrlForLayer'
-            Resource: '*'
-
   # This is an IAM role which authorizes ECS to manage resources on your
   # account on your behalf, such as updating your load balancer with the
   # details of where your containers are, so that traffic can reach your
@@ -180,26 +100,11 @@ Resources:
               Resource: '*'
 
 Outputs:
-  AutoscalingRole:
-    Description: The ARN of the role used for autoscaling
-    Value: !GetAtt 'AutoscalingRole.Arn'
-    Export:
-      Name: !Sub ${EnvironmentName}:AutoscalingRole
   ECSRole:
     Description: The ARN of the ECS role
     Value: !GetAtt 'ECSRole.Arn'
     Export:
       Name: !Sub ${EnvironmentName}:ECSRole
-  EC2Role:
-    Description: The ARN of the EC2 role
-    Value: !GetAtt 'EC2Role.Arn'
-    Export:
-      Name: !Sub ${EnvironmentName}:EC2Role
-  EC2RoleName:
-    Description: The Name of the EC2 role
-    Value: !Ref 'EC2Role'
-    Export:
-      Name: !Sub ${EnvironmentName}:EC2RoleName
   ECSTaskExecutionRole:
     Description: The ARN of the ECS role
     Value: !GetAtt 'ECSTaskExecutionRole.Arn'
