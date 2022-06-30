@@ -32,7 +32,7 @@ Parameters:
   AutoScalingTargetValue:
     Type: Number
     Default: 50
-    
+
 Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -60,19 +60,7 @@ Resources:
       # "There is an optional task execution IAM role that you can specify with Fargate to allow your Fargate tasks to make API calls to Amazon ECR."
       ExecutionRoleArn: !Ref ExecutionRole
       # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that grants containers in the task permission to call AWS APIs on your behalf."
-      TaskRoleArn: !Ref TaskRole
-      ContainerDefinitions:
-        - Name: !Ref ServiceName
-          Image: !Ref Image
-          PortMappings:
-            - ContainerPort: !Ref ContainerPort
-          # Send logs to CloudWatch Logs
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-region: !Ref AWS::Region
-              awslogs-group: !Ref LogGroup
-              awslogs-stream-prefix: ecs
+
   # A role needed by ECS
   ExecutionRole:
     Type: AWS::IAM::Role
