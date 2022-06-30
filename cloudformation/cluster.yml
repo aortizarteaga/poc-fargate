@@ -54,10 +54,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service_v2.yml
-      # Parameters:
-      #     AppName: !Ref AWS::StackName
-      #     EnvironmentName: !Ref EnvironmentName
-      #     Role: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRoleName 
+      Parameters:
+          stackName: !Ref AWS::StackName
+          EnvironmentName: !Ref EnvironmentName
   
   ECSCluster:
     Type: AWS::ECS::Cluster

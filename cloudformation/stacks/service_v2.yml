@@ -1,6 +1,14 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Creating a task definition"
 
+Parameters:
+  StackName:
+    Type: String
+    Description: "A friendly name that will be used for names."
+  EnvironmentName:
+    Type: String
+    Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
+
 Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
