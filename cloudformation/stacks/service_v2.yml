@@ -100,12 +100,3 @@ Resources:
       # This may need to be adjusted if the container takes a while to start up
       HealthCheckGracePeriodSeconds: 30
       LaunchType: FARGATE
-      NetworkConfiguration: 
-        AwsvpcConfiguration:
-          # change to DISABLED if you're using private subnets that have access to a NAT gateway
-          AssignPublicIp: ENABLED
-          Subnets:
-            - !Ref PublicSubnetOne
-            - !Ref PublicSubnetTwo
-          SecurityGroups:
-            - !Ref ContainerSecurityGroup

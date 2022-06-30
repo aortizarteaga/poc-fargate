@@ -1,60 +1,126 @@
-AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create a DB subnet group and PostgreSQL Database"
 
 Parameters:
-  DBInstanceID:
-    Default: dbInstanceSample
-    Description: My database instance
-    Type: String
-    MinLength: '1'
-    MaxLength: '63'
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
-    ConstraintDescription: >-
-      Must begin with a letter and must not end with a hyphen or contain two
-      consecutive hyphens.
-  DBName:
-    Default: dbSample
-    Description: database
-    Type: String
-    MinLength: '1'
-    MaxLength: '64'
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
-    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
-  DBInstanceClass:
-    Default: db.t3.micro
-    Description: DB instance class
-    Type: String
-    ConstraintDescription: Must select a valid DB instance type.
-  DBAllocatedStorage:
-    Default: '20'
-    Description: The size of the database (GiB)
-    Type: Number
-    MinValue: '20'
-    MaxValue: '65536'
-    ConstraintDescription: must be between 20 and 65536 GiB.
-  DBUsername:
-    NoEcho: 'true'
-    Description: Username for PostgreSQL database access
-    Type: String
-    MinLength: '1'
-    MaxLength: '16'
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
-    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
-  DBPassword:
-    NoEcho: 'true'
-    Description: Password MySQL database access
-    Type: String
-    MinLength: '8'
-    MaxLength: '41'
-    AllowedPattern: '[a-zA-Z0-9]*'
-    ConstraintDescription: must contain only alphanumeric characters.
+    MasterUsername:
+        AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+        ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
+        Default: dbadmin
+        Description: Username for PostgreSQL database access
+        MaxLength: 16
+        MinLength: 1
+        NoEcho: true
+        Type: String
+
+    MasterUserPassword:
+        AllowedPattern: '[a-zA-Z0-9]*'
+        ConstraintDescription: Must contain only alphanumeric characters
+        Default: database1407
+        Description: Password for PostgreSQL database access
+        MaxLength: 41
+        MinLength: 8
+        NoEcho: true
+        Type: String
+
+
+
 Resources:
-  MyDB:
-    Type: 'AWS::RDS::DBInstance'
-    Properties:
-      DBInstanceIdentifier: !Ref DBInstanceID
-      DBName: !Ref DBName
-      DBInstanceClass: !Ref DBInstanceClass
-      AllocatedStorage: !Ref DBAllocatedStorage
-      Engine: 'postgres'
-      MasterUsername: !Ref DBUsername
-      MasterUserPassword: !Ref DBPassword
+
+    RDSVPC:
+        Type: 'AWS::EC2::VPC'
+        Properties:
+            CidrBlock: 10.10.1.0/16
+    
+    PublicSubnet1:
+        Type: 'AWS::EC2::Subnet'
+        Properties:
+            VpcId: !Ref RDSVPC
+            AvailabilityZone: us-east-1a
+            CidrBlock: 10.10.2.0/24
+            MapPublicIpOnLaunch: true
+    
+    PublicSubnet2:
+        Type: 'AWS::EC2::Subnet'
+        Properties:
+            VpcId: !Ref RDSVPC
+            AvailabilityZone: us-east-1b
+            CidrBlock: 10.10.3.0/24
+            MapPublicIpOnLaunch: true
+    
+    PrivateSubnet1:
+        Type: 'AWS::EC2::Subnet'
+        Properties:
+            VpcId: !Ref RDSVPC
+            AvailabilityZone: us-east-1a
+            CidrBlock: 10.10.100.0/24
+            MapPublicIpOnLaunch: false
+    
+    PrivateSubnet2:
+        Type: 'AWS::EC2::Subnet'
+        Properties:
+            VpcId: !Ref RDSVPC
+            AvailabilityZone: us-east-1b
+            CidrBlock: 10.10.101.0/24
+            MapPublicIpOnLaunch: false
+    
+    
+    InternetGateway:
+        Type: 'AWS::EC2::InternetGateway'
+        Properties:
+            Tags:
+            - Key: Name
+              Value: !Join [_, [!Ref 'AWS::StackName']]
+            - Key: Network
+              Value: Public
+    
+    GatewayToInternet:
+        Type: 'AWS::EC2::VPCGatewayAttachment'
+        Properties:
+            VpcId: !Ref RDSVPC
+            InternetGatewayId: !Ref InternetGateway
+    
+    NatGateway:
+        Type: "AWS::EC2::NatGateway"
+        DependsOn: NatPublicIP
+        Properties: 
+            AllocationId: !GetAtt NatPublicIP.AllocationId
+            SubnetId: !Ref PublicSubnet1
+    
+    NatPublicIP:
+        Type: "AWS::EC2::EIP"
+        DependsOn: RDSVPC
+        Properties:
+            Domain: vpc
+    
+    PrivateRouteTable:
+        Type: 'AWS::EC2::RouteTable'
+        Properties:
+            VpcId: !Ref RDSVPC
+            Tags:
+            - Key: Network
+              Value: Private
+
+    RDSDBSubnetGroup:
+        Type: "AWS::RDS::DBSubnetGroup"
+        Properties:
+            DBSubnetGroupDescription: "Subnet Group for PostgreSQL database"
+            DBSubnetGroupName: !Sub "${AWS::Region}-aws-dxl-database-subnet-group"
+            SubnetIds: 
+              - !Ref PrivateSubnet1
+              - !Ref PrivateSubnet2
+
+
+    RDSDBInstance:
+        Type: AWS::RDS::DBInstance
+        Properties:
+            DBInstanceIdentifier: rds-postgre-db
+            AllocatedStorage: 100
+            DBInstanceClass: db.t2.micro
+            Engine: "postgres"
+            Iops: 1000
+            MasterUsername: !Ref MasterUsername
+            MasterUserPassword: !Ref MasterUserPassword
+            StorageType: io1
+            Port: 3306
+            DBSubnetGroupName: !Ref RDSDBSubnetGroup
+            MaxAllocatedStorage: 1000
