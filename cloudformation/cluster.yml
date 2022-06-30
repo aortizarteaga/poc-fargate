@@ -7,28 +7,11 @@ Parameters:
     Type: String
     Default: dev
     Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
-  InstanceType:
-    Type: String
-    Default: t2.small
-    Description: Class of EC2 instance used to host containers. Choose t2 for testing, m5 for general purpose, c5 for CPU intensive services, and r5 for memory intensive services
-    AllowedValues: [ t2.micro, t2.small, t2.medium, t2.large, t2.xlarge, t2.2xlarge,
-     m5.large, m5.xlarge, m5.2large, m5.4xlarge, m5.12xlarge, m5.24large,
-     c5.large, c5.xlarge, c5.2xlarge, c5.4xlarge, c5.9xlarge, c5.18xlarge,
-     r5.large, r5.xlarge, r5.2xlarge, r5.4xlarge, r5.12xlarge, r5.24xlarge ]
-    ConstraintDescription: Please choose a valid instance type.
-  DesiredCapacity:
-    Type: Number
-    Default: '1'
-    Description: Number of EC2 instances to launch in your ECS cluster.
-  MaxSize:
-    Type: Number
-    Default: '2'
-    Description: Maximum number of EC2 instances that can be launched in your ECS cluster.
   ECSAMI:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
     Description: The Amazon Machine Image ID used for the cluster, leave it as the default value to get the latest AMI
-  EnableBuildReosurces:
+  EnableBuildResources:
     AllowedValues:
       - 'true'
       - 'false'
@@ -38,12 +21,11 @@ Parameters:
 
 Conditions:
   EnableResources: !Equals
-    - !Ref EnableBuildReosurces
-    - 'true'
+    - !Ref EnableBuildResources
+    - 'false'
 
 Resources:
   VPC:
-    Condition: EnableResources
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/vpc.yml
@@ -52,7 +34,6 @@ Resources:
         EnvironmentName: !Ref EnvironmentName
 
   RolesCluster:
-    Condition: EnableResources
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/roles.yml
@@ -61,7 +42,6 @@ Resources:
         EnvironmentName: !Ref EnvironmentName
 
   SecurityGroups:
-    Condition: EnableResources
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/securitygroup.yml
@@ -74,6 +54,16 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub ${AWS::StackName}-${EnvironmentName}
+  
+  ECSServices:
+    Condition: EnableResources
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service.yml
+      Parameters:
+          StackName: !Ref AWS::StackName
+          EnvironmentName: !Ref EnvironmentName
+          Role: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRoleName 
 
 Outputs:
   VpcId:
@@ -96,11 +86,6 @@ Outputs:
     Value: !Ref ECSCluster
     Export:
       Name: !Sub ${EnvironmentName}:ECSCluster1
-  ALBSecurityGroup:
-    Description: A security group used to allow connection alb to container
-    Value: !GetAtt SecurityGroups.Outputs.ALBSecurityGroup
-    Export:
-      Name: !Sub ${EnvironmentName}:ALBSecurityGroup1
   Name:
     Description: Stack Name
     Value: !Ref AWS::StackName

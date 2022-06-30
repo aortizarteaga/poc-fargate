@@ -17,6 +17,15 @@ Parameters:
   ServiceName:
     Type: String
     Default: ecs-service-sample
+  StackName:
+    Type: String
+    Description: "A friendly name that will be used for names."
+  EnvironmentName:
+    Type: String
+    Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
+  Role:
+    Type: String
+    Description: "A friendly name that will be used for roles."
 
 
 Resources:
@@ -58,13 +67,13 @@ Resources:
             SourcePath: /var/lib/docker/vfs/dir/
           Name: my-vol
   
-  ecs-service:
+  service:
     Type: AWS::ECS::Service
     Properties: 
       Cluster: !Sub ${AWS::StackName}-${EnvironmentName}
       DesiredCount: 0
       LaunchType: FARGATE
-      Role:   !Ref ECSTaskExecutionRole
+      Role:   !Ref Role
       SchedulingStrategy: String
       ServiceName: !Ref ServiceName
       TaskDefinition: !Ref taskdefinition
