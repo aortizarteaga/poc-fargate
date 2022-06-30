@@ -10,11 +10,6 @@ Parameters:
     Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
 
 Resources:
-  TaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      RequiresCompatibilities:
-        - "FARGATE"
 
   ECSService:
     Type: AWS::ECS::Service
@@ -22,7 +17,6 @@ Resources:
       LaunchType: FARGATE
       Cluster: !Sub ${Name}-${EnvironmentName}
       DesiredCount: 0
-      TaskDefinition: !Ref TaskDefinition
       DeploymentConfiguration:
         MaximumPercent: 100
         MinimumHealthyPercent: 0
