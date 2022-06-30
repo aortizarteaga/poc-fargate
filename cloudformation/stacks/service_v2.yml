@@ -32,11 +32,10 @@ Parameters:
   AutoScalingTargetValue:
     Type: Number
     Default: 50
+    
 Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
-    # Makes sure the log group is created before it is used.
-    DependsOn: LogGroup
     Properties:
       # Name of the task definition. Subsequent versions of the task definition are grouped together under this name.
       Family: !Join ['', [!Ref ServiceName, TaskDefinition]]
@@ -102,8 +101,6 @@ Resources:
   Service:
     Type: AWS::ECS::Service
     # This dependency is needed so that the load balancer is setup correctly in time
-    DependsOn:
-      - ListenerHTTPS
     Properties: 
       ServiceName: !Ref ServiceName
       Cluster: !Ref ECSCluster
