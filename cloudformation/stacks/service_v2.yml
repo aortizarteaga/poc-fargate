@@ -20,7 +20,7 @@ Resources:
     Type: AWS::ECS::Service
     Properties: 
       LaunchType: FARGATE
-      Cluster: !Sub ${stackName}-${EnvironmentName}
+      Cluster: !Sub ${StackName}-${EnvironmentName}
       DesiredCount: 0
       TaskDefinition: !Ref TaskDefinition
       DeploymentConfiguration:
