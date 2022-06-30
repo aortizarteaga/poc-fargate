@@ -7,7 +7,7 @@ Resources:
     Properties:
       RequiresCompatibilities:
         - "FARGATE"
-      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskExecutionRole
 
   ECSService:
     Type: AWS::ECS::Service
