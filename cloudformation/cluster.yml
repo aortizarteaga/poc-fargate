@@ -49,21 +49,22 @@ Resources:
         Name: !Ref AWS::StackName
         EnvironmentName: !Ref EnvironmentName
         Vpc: !GetAtt VPC.Outputs.VpcId 
+
+  ECSServices:
+    Condition: EnableResources
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service_v2.yml
+      # Parameters:
+      #     AppName: !Ref AWS::StackName
+      #     EnvironmentName: !Ref EnvironmentName
+      #     Role: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRoleName 
   
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub ${AWS::StackName}-${EnvironmentName}
   
-  ECSServices:
-    Condition: EnableResources
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service.yml
-      Parameters:
-          StackName: !Ref AWS::StackName
-          EnvironmentName: !Ref EnvironmentName
-          Role: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRoleName 
 
 Outputs:
   VpcId:

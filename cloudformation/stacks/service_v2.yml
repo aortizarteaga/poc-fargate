@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Creating a task definition"
+
+Resources:
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      RequiresCompatibilities:
+        - "FARGATE"
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties: 
+      LaunchType: FARGATE
+      Cluster: !Sub ${AWS::StackName}-${EnvironmentName}
+      DesiredCount: 0
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+
