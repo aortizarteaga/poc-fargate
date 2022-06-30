@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Creating a task definition"
 
 Parameters:
-  StackName:
+  Name:
     Type: String
     Description: "A friendly name that will be used for names."
   EnvironmentName:
@@ -20,7 +20,7 @@ Resources:
     Type: AWS::ECS::Service
     Properties: 
       LaunchType: FARGATE
-      Cluster: !Sub ${StackName}-${EnvironmentName}
+      Cluster: !Sub ${Name}-${EnvironmentName}
       DesiredCount: 0
       TaskDefinition: !Ref TaskDefinition
       DeploymentConfiguration:
