@@ -51,7 +51,6 @@ Resources:
         Vpc: !GetAtt VPC.Outputs.VpcId 
 
   ECSServices:
-    Condition: EnableResources
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service_v2.yml
