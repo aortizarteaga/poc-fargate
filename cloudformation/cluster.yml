@@ -2,7 +2,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: EC2 ECS cluster running containers in a private subnet. Supports
              public facing load balancers, private internal load balancers, and
              both internal and external service discovery namespaces.
+
 Parameters:
+  CName:
+    Type: String
+    Default: clusterSample
+    Description: "Elastic Container Service cluster"
   EnvironmentName:
     Type: String
     Default: dev
@@ -12,12 +17,12 @@ Parameters:
     Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
     Description: The Amazon Machine Image ID used for the cluster, leave it as the default value to get the latest AMI
   EnableBuildResources:
+    Type: String
     AllowedValues:
       - 'true'
       - 'false'
     Default: 'true'
     Description: Enable build
-    Type: String
 
 Conditions:
   EnableResources: !Equals
@@ -42,6 +47,7 @@ Resources:
         EnvironmentName: !Ref EnvironmentName
 
   SecurityGroups:
+    DependsOn: VPC
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/securitygroup.yml
@@ -51,14 +57,21 @@ Resources:
         Vpc: !GetAtt VPC.Outputs.VpcId 
 
   ECSServices:
+    DependsOn: VPC
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service_v2.yml
-  
+      Parameters:
+        ClusterName: !Ref CName
+        Vpc: !GetAtt VPC.Outputs.VpcId 
+        TaskExecutionRole: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRole
+        SubnetA: !GetAtt VPC.Outputs.PublicSubnetOne
+        SubnetB: !GetAtt VPC.Outputs.PublicSubnetTwo
+
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub ${AWS::StackName}-${EnvironmentName}
+      ClusterName: !Ref CName
   
 
 Outputs:
