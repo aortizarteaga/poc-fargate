@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: VPC cloudformation. VPC has 3 public subnet and 3 private subnet.
+Description: VPC cloudformation. VPC has 2 public subnet and 2 private subnet.
 
 Parameters:
   Name:
@@ -17,14 +17,14 @@ Mappings:
       CIDR: '10.0.0.0/24'
     PublicTwo:
       CIDR: '10.0.1.0/24'
-    PublicThree:
-      CIDR: '10.0.2.0/24'
+    # PublicThree:
+    #   CIDR: '10.0.2.0/24'
     PrivateOne:
       CIDR: '10.0.100.0/24'
     PrivateTwo:
       CIDR: '10.0.101.0/24'
-    PrivateThree:
-      CIDR: '10.0.102.0/24'
+    # PrivateThree:
+    #   CIDR: '10.0.102.0/24'
 
 Resources:
   # VPC in which containers will be networked.
@@ -52,9 +52,7 @@ Resources:
   PublicSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select
-        - 0
-        - Fn::GetAZs: !Ref 'AWS::Region'
+      AvailabilityZone: "us-east-1b"
       VpcId: !Ref 'VPC'
       CidrBlock: !FindInMap ['SubnetConfig', 'PublicOne', 'CIDR']
       MapPublicIpOnLaunch: true
@@ -71,9 +69,7 @@ Resources:
   PublicSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select
-        - 1
-        - Fn::GetAZs: !Ref 'AWS::Region'
+      AvailabilityZone: "us-east-1c"
       VpcId: !Ref 'VPC'
       CidrBlock: !FindInMap ['SubnetConfig', 'PublicTwo', 'CIDR']
       MapPublicIpOnLaunch: true
@@ -87,25 +83,25 @@ Resources:
         - 
          Key: Project
          Value:  !Sub ${Name}-${EnvironmentName}
-  PublicSubnetThree:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone: !Select
-        - 2
-        - Fn::GetAZs: !Ref 'AWS::Region'
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap ['SubnetConfig', 'PublicThree', 'CIDR']
-      MapPublicIpOnLaunch: true
-      Tags:
-        - 
-         Key: Environment
-         Value:  !Sub ${EnvironmentName}
-        - 
-         Key: Name
-         Value:  !Sub ${Name}-subnetPublic3
-        - 
-         Key: Project
-         Value:  !Sub ${Name}-${EnvironmentName}
+  # PublicSubnetThree:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     AvailabilityZone: !Select
+  #       - 2
+  #       - Fn::GetAZs: !Ref 'AWS::Region'
+  #     VpcId: !Ref 'VPC'
+  #     CidrBlock: !FindInMap ['SubnetConfig', 'PublicThree', 'CIDR']
+  #     MapPublicIpOnLaunch: true
+  #     Tags:
+  #       - 
+  #        Key: Environment
+  #        Value:  !Sub ${EnvironmentName}
+  #       - 
+  #        Key: Name
+  #        Value:  !Sub ${Name}-subnetPublic3
+  #       - 
+  #        Key: Project
+  #        Value:  !Sub ${Name}-${EnvironmentName}
 
   # Three private subnets where containers will only have private
   # IP addresses, and will only be reachable by other members of the
@@ -113,9 +109,7 @@ Resources:
   PrivateSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select
-        - 0
-        - Fn::GetAZs: !Ref 'AWS::Region'
+      AvailabilityZone: "us-east-1b"
       VpcId: !Ref 'VPC'
       CidrBlock: !FindInMap ['SubnetConfig', 'PrivateOne', 'CIDR']
       Tags:
@@ -132,9 +126,7 @@ Resources:
   PrivateSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select
-        - 1
-        - Fn::GetAZs: !Ref 'AWS::Region'
+      AvailabilityZone: "us-east-1c"
       VpcId: !Ref 'VPC'
       CidrBlock: !FindInMap ['SubnetConfig', 'PrivateTwo', 'CIDR']
       Tags:
@@ -147,24 +139,24 @@ Resources:
         - 
          Key: Project
          Value: !Sub ${Name}-${EnvironmentName}
-  PrivateSubnetThree:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone: !Select
-        - 2
-        - Fn::GetAZs: !Ref 'AWS::Region'
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap ['SubnetConfig', 'PrivateThree', 'CIDR']
-      Tags:
-        - 
-         Key: Environment
-         Value: !Sub ${EnvironmentName}
-        - 
-         Key: Name
-         Value: !Sub ${Name}-subnetPrivate3
-        - 
-         Key: Project
-         Value: !Sub ${Name}-${EnvironmentName}
+  # PrivateSubnetThree:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     AvailabilityZone: !Select
+  #       - 2
+  #       - Fn::GetAZs: !Ref 'AWS::Region'
+  #     VpcId: !Ref 'VPC'
+  #     CidrBlock: !FindInMap ['SubnetConfig', 'PrivateThree', 'CIDR']
+  #     Tags:
+  #       - 
+  #        Key: Environment
+  #        Value: !Sub ${EnvironmentName}
+  #       - 
+  #        Key: Name
+  #        Value: !Sub ${Name}-subnetPrivate3
+  #       - 
+  #        Key: Project
+  #        Value: !Sub ${Name}-${EnvironmentName}
 
   # Setup networking resources for the public subnets. Containers
   # in the public subnets have public IP addresses and the routing table
@@ -208,11 +200,11 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnetTwo
       RouteTableId: !Ref PublicRouteTable
-  PublicSubnetThreeRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnetThree
-      RouteTableId: !Ref PublicRouteTable
+  # PublicSubnetThreeRouteTableAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     SubnetId: !Ref PublicSubnetThree
+  #     RouteTableId: !Ref PublicRouteTable
 
   # Setup networking resources for the private subnets. Containers
   # in these subnets have only private IP addresses, and must use a NAT
@@ -228,11 +220,11 @@ Resources:
     DependsOn: GatewayAttachment
     Properties:
         Domain: vpc
-  NatGatewayThreeAttachment:
-    Type: AWS::EC2::EIP
-    DependsOn: GatewayAttachment
-    Properties:
-        Domain: vpc
+  # NatGatewayThreeAttachment:
+  #   Type: AWS::EC2::EIP
+  #   DependsOn: GatewayAttachment
+  #   Properties:
+  #       Domain: vpc
   NatGatewayOne:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -263,21 +255,21 @@ Resources:
         - 
          Key: Project
          Value: !Sub ${Name}-${EnvironmentName}
-  NatGatewayThree:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatGatewayThreeAttachment.AllocationId
-      SubnetId: !Ref PublicSubnetThree
-      Tags:
-        - 
-         Key: Environment
-         Value: !Sub ${EnvironmentName}
-        - 
-         Key: Name
-         Value: !Sub ${Name}-NAT3
-        - 
-         Key: Project
-         Value: !Sub ${Name}-${EnvironmentName}
+  # NatGatewayThree:
+  #   Type: AWS::EC2::NatGateway
+  #   Properties:
+  #     AllocationId: !GetAtt NatGatewayThreeAttachment.AllocationId
+  #     SubnetId: !Ref PublicSubnetThree
+  #     Tags:
+  #       - 
+  #        Key: Environment
+  #        Value: !Sub ${EnvironmentName}
+  #       - 
+  #        Key: Name
+  #        Value: !Sub ${Name}-NAT3
+  #       - 
+  #        Key: Project
+  #        Value: !Sub ${Name}-${EnvironmentName}
   PrivateRouteTableOne:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -328,31 +320,31 @@ Resources:
     Properties:
       RouteTableId: !Ref PrivateRouteTableTwo
       SubnetId: !Ref PrivateSubnetTwo
-  PrivateRouteTableThree:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - 
-         Key: Environment
-         Value: !Sub ${EnvironmentName}
-        - 
-         Key: Name
-         Value: !Sub ${Name}-private-routetable-3
-        - 
-         Key: Project
-         Value: !Sub ${Name}-${EnvironmentName}
-  PrivateRouteThree:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTableThree
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGatewayThree
-  PrivateRouteTableThreeAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PrivateRouteTableThree
-      SubnetId: !Ref PrivateSubnetThree
+  # PrivateRouteTableThree:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: !Ref 'VPC'
+  #     Tags:
+  #       - 
+  #        Key: Environment
+  #        Value: !Sub ${EnvironmentName}
+  #       - 
+  #        Key: Name
+  #        Value: !Sub ${Name}-private-routetable-3
+  #       - 
+  #        Key: Project
+  #        Value: !Sub ${Name}-${EnvironmentName}
+  # PrivateRouteThree:
+  #   Type: AWS::EC2::Route
+  #   Properties:
+  #     RouteTableId: !Ref PrivateRouteTableThree
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId: !Ref NatGatewayThree
+  # PrivateRouteTableThreeAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     RouteTableId: !Ref PrivateRouteTableThree
+  #     SubnetId: !Ref PrivateSubnetThree
 
 Outputs:
   VpcId:
@@ -370,11 +362,11 @@ Outputs:
     Value: !Ref 'PublicSubnetTwo'
     Export:
       Name: !Sub ${EnvironmentName}:PublicSubnetTwo
-  PublicSubnetThree:
-    Description: Public subnet three
-    Value: !Ref 'PublicSubnetThree'
-    Export:
-      Name: !Sub ${EnvironmentName}:PublicSubnetThree
+  # PublicSubnetThree:
+  #   Description: Public subnet three
+  #   Value: !Ref 'PublicSubnetThree'
+  #   Export:
+  #     Name: !Sub ${EnvironmentName}:PublicSubnetThree
   PrivateSubnetOne:
     Description: Private subnet one
     Value: !Ref 'PrivateSubnetOne'
@@ -385,8 +377,8 @@ Outputs:
     Value: !Ref 'PrivateSubnetTwo'
     Export:
       Name: !Sub ${EnvironmentName}:PrivateSubnetTwo
-  PrivateSubnetThree:
-    Description: Private subnet three
-    Value: !Ref 'PrivateSubnetThree'
-    Export:
-      Name: !Sub ${EnvironmentName}:PrivateSubnetThree
+  # PrivateSubnetThree:
+  #   Description: Private subnet three
+  #   Value: !Ref 'PrivateSubnetThree'
+  #   Export:
+  #     Name: !Sub ${EnvironmentName}:PrivateSubnetThree

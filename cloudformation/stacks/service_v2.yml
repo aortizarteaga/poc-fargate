@@ -1,10 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: An example CloudFormation template for Fargate.
 Parameters:
-  ClusterName:
-    Type: String
-    Default: ecs-cluster-sample
-    Description: "Elastic Container Service cluster"
   VPC:
     Type: String
     Description: "A friendly name that will be used for roles."
@@ -46,10 +42,6 @@ Parameters:
     Type: Number
     Default: 50
 Resources:
-  Cluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: !Ref ClusterName
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     # Makes sure the log group is created before it is used.
@@ -186,8 +178,6 @@ Resources:
       LoadBalancerArn: !Ref LoadBalancer
       Port: !Ref LoadBalancerPort
       Protocol: HTTPS
-      Certificates:
-        - CertificateArn: !Ref Certificate
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:

@@ -56,17 +56,16 @@ Resources:
         EnvironmentName: !Ref EnvironmentName
         Vpc: !GetAtt VPC.Outputs.VpcId 
 
-  ECSServices:
-    DependsOn: VPC
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service_v2.yml
-      Parameters:
-        ClusterName: !Ref CName
-        Vpc: !GetAtt VPC.Outputs.VpcId 
-        TaskExecutionRole: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRole
-        SubnetA: !GetAtt VPC.Outputs.PublicSubnetOne
-        SubnetB: !GetAtt VPC.Outputs.PublicSubnetTwo
+  # ECSServices:
+  #   DependsOn: VPC
+  #   Type: AWS::CloudFormation::Stack
+  #   Properties:
+  #     TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service_v2.yml
+  #     Parameters:
+  #       VPC: !GetAtt VPC.Outputs.VpcId 
+  #       TaskExecutionRole: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRole
+  #       SubnetA: !GetAtt VPC.Outputs.PublicSubnetOne
+  #       SubnetB: !GetAtt VPC.Outputs.PublicSubnetTwo
 
   ECSCluster:
     Type: AWS::ECS::Cluster
