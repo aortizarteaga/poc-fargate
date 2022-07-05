@@ -57,7 +57,7 @@ Resources:
         Vpc: !GetAtt VPC.Outputs.VpcId 
 
   ECSServices:
-    DependsOn: VPC
+    DependsOn: SecurityGroups
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service_v2.yml
@@ -65,6 +65,7 @@ Resources:
         ClusterName: !Ref CName
         VPC: !GetAtt VPC.Outputs.VpcId 
         TaskExecutionRole: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRole
+        ContainerSecurityGroup: !GetAtt SecurityGroups.Outputs.ContainerSecurityGroup
         SubnetA: !GetAtt VPC.Outputs.PublicSubnetOne
         SubnetB: !GetAtt VPC.Outputs.PublicSubnetTwo
 
@@ -100,6 +101,11 @@ Outputs:
     Value: !Ref AWS::StackName
     Export:
       Name: !Sub ${EnvironmentName}:Name1
+  ContainerSecurityGroup:
+    Description: A security group used to allow containers to receive traffic
+    Value: !GetAtt SecurityGroups.Outputs.ContainerSecurityGroup
+    Export:
+      Name: !Sub ${EnvironmentName}:ContainerSecurityGroup1
   ECSTaskExecutionRoleName:
     Description: The ARN of the ECS role
     Value: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRole

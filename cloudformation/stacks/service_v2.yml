@@ -10,6 +10,8 @@ Parameters:
     Description: "A friendly name that will be used for roles."
   TaskExecutionRole:
     Type: String
+  ContainerSecurityGroup:
+    Type: String
   SubnetA:
     Type: AWS::EC2::Subnet::Id
   SubnetB:
@@ -26,13 +28,7 @@ Parameters:
     Default: 443
   HealthCheckPath:
     Type: String
-    Default: /healthcheck
-  HostedZoneName:
-    Type: String
-    Default: fargateexample.com
-  Subdomain:
-    Type: String
-    Default: ecs-service
+    Default: /
   MinContainers:
     Type: Number
     Default: 2
@@ -60,7 +56,7 @@ Resources:
       ExecutionRoleArn: !Ref TaskExecutionRole
       ContainerDefinitions:
         - Name: !Ref ServiceName
-          Image:  nginx 
+          Image:  nginxdemos/hello 
           PortMappings:
             - ContainerPort: !Ref ContainerPort
           # Send logs to CloudWatch Logs
@@ -71,17 +67,6 @@ Resources:
               awslogs-group: !Ref LogGroup
               awslogs-stream-prefix: ecs
 
-  ContainerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: !Join ['', [!Ref ServiceName, ContainerSecurityGroup]]
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: !Ref ContainerPort
-          ToPort: !Ref ContainerPort
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
-
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -89,43 +74,9 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: !Ref LoadBalancerPort
-          ToPort: !Ref LoadBalancerPort
+          FromPort: !Ref ContainerPort
+          ToPort: !Ref ContainerPort
           CidrIp: 0.0.0.0/0
-
-  SampleCertificate: 
-    Type: "AWS::CertificateManager::Certificate"
-    Properties: 
-      DomainName: fargateexample.com
-      ValidationMethod: DNS
-
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckIntervalSeconds: 10
-      # will look for a 200 status code by default unless specified otherwise
-      HealthCheckPath: !Ref HealthCheckPath
-      HealthCheckTimeoutSeconds: 5
-      UnhealthyThresholdCount: 2
-      HealthyThresholdCount: 2
-      Name: !Join ['', [!Ref ServiceName, TargetGroup]]
-      Port: !Ref ContainerPort
-      Protocol: HTTP
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: 60 # default is 300
-      TargetType: ip
-      VpcId: !Ref VPC
-
-  Listener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-      - Type: forward
-        TargetGroupArn: !Ref TargetGroup
-      LoadBalancerArn: !Ref LoadBalancer
-      Port: '80'
-      Protocol: HTTP
 
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -137,15 +88,36 @@ Resources:
         - !Ref SubnetA
         - !Ref SubnetB
 
-  DNSRecord:
-    Type: AWS::Route53::RecordSet
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
-      HostedZoneName: !Join ['', [!Ref HostedZoneName, .]]
-      Name: !Join ['', [!Ref Subdomain, ., !Ref HostedZoneName, .]]
-      Type: A
-      AliasTarget:
-        DNSName: !GetAtt LoadBalancer.DNSName
-        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: LoadBalancer
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: !Ref HealthCheckPath
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Matcher:
+          HttpCode: '200'
+      Name: !Join ['', [!Ref ServiceName, TargetGroup]]
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60 # default is 300
+      TargetType: ip
+      VpcId: !Ref VPC
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -162,7 +134,7 @@ Resources:
       DeploymentConfiguration:
         MinimumHealthyPercent: 100
         MaximumPercent: 200
-      DesiredCount: 2
+      DesiredCount: 1
       # This may need to be adjusted if the container takes a while to start up
       HealthCheckGracePeriodSeconds: 30
       LaunchType: FARGATE
@@ -179,8 +151,3 @@ Resources:
         - ContainerName: !Ref ServiceName
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroup
-
-Outputs:
-  Endpoint:
-    Description: Endpoint
-    Value: !Join ['', ['https://', !Ref DNSRecord]]
