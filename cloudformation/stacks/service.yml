@@ -1,79 +1,167 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: ECS service that runs and maintains the requested number of tasks and associated load balancers.
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: An ECS Fargate service.
+
+###################
+# Parameters
+###################
 
 Parameters:
-  AppName:
+
+  ClusterName:
     Type: String
-    Description: Name of app requiring ELB exposure
-    Default: simple-app
-  AppContainerPort:
-    Type: Number
-    Description: Container port of app requiring ELB exposure
-    Default: '80'
-  AppHostPort:
-    Type: Number
-    Description: Host port of app requiring ELB exposure
-    Default: '80'
-  ServiceName:
-    Type: String
-    Default: ecs-service-sample
-  StackName:
-    Type: String
-    Description: "A friendly name that will be used for names."
-  EnvironmentName:
-    Type: String
-    Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
-  Role:
+    Description: "Elastic Container Service cluster"
+
+  VPC:
     Type: String
     Description: "A friendly name that will be used for roles."
 
+  TaskExecutionRole:
+    Type: String
+  
+  LoadBalancerSecurityGroup:
+    Type: String
+
+  ContainerSecurityGroup:
+    Type: String
+
+  SubnetA:
+    Type: AWS::EC2::Subnet::Id
+
+  SubnetB:
+    Type: AWS::EC2::Subnet::Id
+
+  ServiceName:
+    Type: String
+    Default: ecs-service-sample
+
+  ContainerPort:
+    Type: Number
+    Default: 80
+
+  LoadBalancerPort:
+    Type: Number
+    Default: 443
+
+  HealthCheckPath:
+    Type: String
+    Default: /
+
+  MinContainers:
+    Type: Number
+    Default: 2
+
+  MaxContainers:
+    Type: Number
+    Default: 10
+
+############################
+# Fargate service resources
+############################
 
 Resources:
-  taskdefinition:
+
+  TaskDefinition:
     Type: AWS::ECS::TaskDefinition
+    # Makes sure the log group is created before it is used.
+    DependsOn: LogGroup
     Properties:
+      # Name of the task definition. Subsequent versions of the task definition are grouped together under this name.
+      Family: !Join ['', [!Ref ClusterName, TaskDefinition]]
+      # awsvpc is required for Fargate
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: 256
+
+      Memory: 0.5GB
+
+      ExecutionRoleArn: !Ref TaskExecutionRole
       ContainerDefinitions:
-        - Name: !Ref AppName
-          MountPoints:
-            - SourceVolume: my-vol
-              ContainerPath: /var/www/my-vol
-          Image: amazon/amazon-ecs-sample
-          Cpu: '10'
+        - Name: !Sub ${ClusterName}-service
+          Image:  nginxdemos/hello 
           PortMappings:
-            - ContainerPort: !Ref AppContainerPort
-              HostPort: !Ref AppHostPort
-          EntryPoint:
-            - /usr/sbin/apache2
-            - '-D'
-            - FOREGROUND
-          Memory: '500'
-          Essential: true
-        - Name: busybox
-          Image: busybox
-          Cpu: '10'
-          EntryPoint:
-            - sh
-            - '-c'
-          Memory: '500'
-          Command:
-            - >-
-              /bin/sh -c "while true; do /bin/date > /var/www/my-vol/date; sleep
-              1; done"
-          Essential: false
-          VolumesFrom:
-            - SourceContainer: !Ref AppName
-      Volumes:
-        - Host:
-            SourcePath: /var/lib/docker/vfs/dir/
-          Name: my-vol
-  
-  service:
+            - ContainerPort: !Ref ContainerPort
+          # Send logs to CloudWatch Logs
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: ecs
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ['', [!Ref ClusterName, LoadBalancer]]
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+              
+      Subnets:
+        - !Ref SubnetA
+        - !Ref SubnetB
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: LoadBalancer
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: !Ref HealthCheckPath
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Matcher:
+          HttpCode: '200'
+      Name: !Join ['', [!Ref ClusterName, TargetGroup]]
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60 # default is 300
+      TargetType: ip
+      VpcId: !Ref VPC
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['', [/ecs/, !Ref ClusterName, TaskDefinition]]
+
+  Service:
     Type: AWS::ECS::Service
+    DependsOn: Listener
     Properties: 
-      Cluster: !Sub ${AWS::StackName}-${EnvironmentName}
-      DesiredCount: 0
+      ServiceName: !Sub ${ServiceName}-service
+      Cluster: !Ref ClusterName
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      DesiredCount: 1
+      # This may need to be adjusted if the container takes a while to start up
+      HealthCheckGracePeriodSeconds: 30
       LaunchType: FARGATE
-      Role:   !Ref Role
-      SchedulingStrategy: String
-      ServiceName: !Ref ServiceName
-      TaskDefinition: !Ref taskdefinition
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          # change to DISABLED if you're using private subnets that have access to a NAT gateway
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref SubnetA
+            - !Ref SubnetB
+          SecurityGroups:
+            - !Ref ContainerSecurityGroup 
+            # add a private security group
+      LoadBalancers:
+        - ContainerName: !Sub ${ServiceName}-service
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref TargetGroup

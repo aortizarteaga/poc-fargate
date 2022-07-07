@@ -1,5 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
+
 Description: Roles cloudformation. Roles permission to access to cluster ECS.
+
+###################
+# Role Parameters
+###################
 
 Parameters:
   Name:
@@ -9,12 +14,17 @@ Parameters:
     Type: String
     Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
 
+###################
+# ECS Role
+###################
+
 Resources:
   # This is an IAM role which authorizes ECS to manage resources on your
   # account on your behalf, such as updating your load balancer with the
   # details of where your containers are, so that traffic can reach your
   # containers.
   ECSRole:
+
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub "${Name}ECSRole"
@@ -100,16 +110,19 @@ Resources:
               Resource: '*'
 
 Outputs:
+
   ECSRole:
     Description: The ARN of the ECS role
     Value: !GetAtt 'ECSRole.Arn'
     Export:
       Name: !Sub ${EnvironmentName}:ECSRole
+
   ECSTaskExecutionRole:
     Description: The ARN of the ECS role
     Value: !GetAtt 'ECSTaskExecutionRole.Arn'
     Export:
       Name: !Sub ${EnvironmentName}:ECSTaskExecutionRole
+
   ECSTaskExecutionRoleName:
     Description: The Name of the ECS role
     Value: !Ref 'ECSTaskExecutionRole'

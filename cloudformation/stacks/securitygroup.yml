@@ -1,31 +1,85 @@
 AWSTemplateFormatVersion: '2010-09-09'
+
 Description: SG cloudformation. SG permission access to cluster ECS.
 
+###################
+# SG Parameters
+###################
+
 Parameters:
+
   Name:
     Type: String
     Description: "A friendly name that will be used for roles."
+
   EnvironmentName:
     Type: String
     Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
-  Vpc:
+  
+  VPC:
     Type: String
     Description: "A friendly name that will be used for roles."
+ 
+  SGPort:
+    Type: Number
+    Default: 80
+
+###################
+# SG Resources
+###################
 
 Resources:
   # A security group for the containers we will run in ECS.
   # Rules are added to this security group based on what ingress you
   # add for the cluster.
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${Name}-lb-sg
+      GroupDescription: !Join ['', [!Ref Name, LoadBalancerSecurityGroup]]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref SGPort
+          ToPort: !Ref SGPort
+          CidrIp: 0.0.0.0/0
+  
+  # add a private security group (attach load balancer)
+  PrivateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${Name}-private-sg
+      GroupDescription: !Join ['', [!Ref Name, PrivateSecurityGroup]]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref SGPort
+          ToPort: !Ref SGPort
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+
+  # add a security group rds (attach private & ecs)
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${Name}-rds-sg
+      GroupDescription: !Join ['', [!Ref Name, RDSSecurityGroup]]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: '-1' #all traffic
+          SourceSecurityGroupId: !Ref PrivateSecurityGroup
+        - IpProtocol: '-1' #all traffic
+          SourceSecurityGroupId: !Ref ContainerSecurityGroup
+
   ContainerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      GroupName: !Sub ${Name}-ecs-sg
       GroupDescription: Access to the ECS hosts that run containers
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-      VpcId: !Ref 'Vpc'
+        - IpProtocol: '-1' #all traffic
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      VpcId: !Ref 'VPC'
       Tags:
         - 
          Key: Environment
@@ -38,8 +92,20 @@ Resources:
          Value: !Sub ${Name}-${EnvironmentName}
 
 Outputs:
+  LoadBalancerSecurityGroup:
+    Description: A security group used to allow containers to receive traffic
+    Value: !Ref 'LoadBalancerSecurityGroup'
+    Export:
+      Name: !Sub ${EnvironmentName}:LoadBalancerSecurityGroup
+
   ContainerSecurityGroup:
     Description: A security group used to allow containers to receive traffic
     Value: !Ref 'ContainerSecurityGroup'
     Export:
       Name: !Sub ${EnvironmentName}:ContainerSecurityGroup
+  
+  RDSSecurityGroup:
+    Description: A security group used to allow containers to receive traffic
+    Value: !Ref 'RDSSecurityGroup'
+    Export:
+      Name: !Sub ${EnvironmentName}:RDSSecurityGroup

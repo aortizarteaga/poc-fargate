@@ -1,21 +1,33 @@
 AWSTemplateFormatVersion: '2010-09-09'
+
 Description: EC2 ECS cluster running containers in a private subnet. Supports
              public facing load balancers, private internal load balancers, and
              both internal and external service discovery namespaces.
 
+#####################
+# Parameters
+#####################
+
 Parameters:
-  CName:
+
+  Project:
     Type: String
-    Default: aaa-dev
-    Description: "Elastic Container Service cluster"
+    Default: aaa
+
+  Region: 
+    Type: String
+    Default: us1
+
   EnvironmentName:
     Type: String
     Default: dev
     Description: "A friendly environment name that will be used for namespacing all cluster resources. Example: staging, qa, or production"
+  
   ECSAMI:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
     Description: The Amazon Machine Image ID used for the cluster, leave it as the default value to get the latest AMI
+
   EnableBuildResources:
     Type: String
     AllowedValues:
@@ -23,6 +35,29 @@ Parameters:
       - 'false'
     Default: 'true'
     Description: Enable build
+  
+  # RDS credentials
+
+  MasterUsername:
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
+    Default: dbadmin
+    Description: Username for PostgreSQL database access
+    MaxLength: 16
+    MinLength: 1
+    NoEcho: true
+    Type: String
+
+  MasterUserPassword:
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: Must contain only alphanumeric characters
+    Default: database1407
+    Description: Password for PostgreSQL database access
+    MaxLength: 41
+    MinLength: 8
+    NoEcho: true
+    Type: String
+
 
 Conditions:
   EnableResources: !Equals
@@ -30,12 +65,14 @@ Conditions:
     - 'false'
 
 Resources:
+
+# Cluster Resources
   VPC:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/vpc.yml
       Parameters:
-        Name: !Ref AWS::StackName
+        Name: !Sub vpc-${Project}-${Region}-${EnvironmentName}
         EnvironmentName: !Ref EnvironmentName
 
   RolesCluster:
@@ -43,7 +80,7 @@ Resources:
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/roles.yml
       Parameters:
-        Name: !Ref AWS::StackName
+        Name: !Sub ${Project}-${Region}-${EnvironmentName}
         EnvironmentName: !Ref EnvironmentName
 
   SecurityGroups:
@@ -52,19 +89,20 @@ Resources:
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/securitygroup.yml
       Parameters:
-        Name: !Ref AWS::StackName
+        Name: !Sub ${Project}-${Region}-${EnvironmentName}-sg
         EnvironmentName: !Ref EnvironmentName
-        Vpc: !GetAtt VPC.Outputs.VpcId 
+        VPC: !GetAtt VPC.Outputs.VpcId 
 
   ECSServices:
     DependsOn: SecurityGroups
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service_v2.yml
+      TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/service.yml
       Parameters:
-        ClusterName: !Ref CName
+        ClusterName: !Sub ecs-${Project}-${Region}-${EnvironmentName}
         VPC: !GetAtt VPC.Outputs.VpcId 
         TaskExecutionRole: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRole
+        LoadBalancerSecurityGroup: !GetAtt SecurityGroups.Outputs.LoadBalancerSecurityGroup
         ContainerSecurityGroup: !GetAtt SecurityGroups.Outputs.ContainerSecurityGroup
         SubnetA: !GetAtt VPC.Outputs.PublicSubnetOne
         SubnetB: !GetAtt VPC.Outputs.PublicSubnetTwo
@@ -72,42 +110,96 @@ Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Ref CName
-  
+      ClusterName: !Sub ecs-${Project}-${Region}-${EnvironmentName}
+
+# RDS Resources
+  RDSDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnet Group for PostgreSQL database"
+      DBSubnetGroupName: !Sub rds-${Project}-${Region}-${EnvironmentName}-subnetGroup
+      SubnetIds: 
+        - !GetAtt VPC.Outputs.PrivateSubnetDbOne
+        - !GetAtt VPC.Outputs.PrivateSubnetDbTwo
+
+  RDSDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub rds-postgre-${Project}-${Region}-${EnvironmentName}
+      AllocatedStorage: 100
+      DBInstanceClass: db.m5.4xlarge
+      Engine: "postgres"
+      Iops: 1000
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterUserPassword
+      StorageType: io1
+      Port: 3306
+      DBSubnetGroupName: !Ref RDSDBSubnetGroup
+      MaxAllocatedStorage: 1000
+      VPCSecurityGroups: 
+        - !GetAtt SecurityGroups.Outputs.RDSSecurityGroup
+
 
 Outputs:
+
   VpcId:
     Description: The ID of the VPC that this stack is deployed in
     Value: !GetAtt VPC.Outputs.VpcId
     Export:
       Name: !Sub ${EnvironmentName}:VpcId1
+
   PublicSubnetOne:
     Description: Public subnet one
     Value: !GetAtt VPC.Outputs.PublicSubnetOne
     Export:
       Name: !Sub ${EnvironmentName}:PublicSubnetOne1
+
   PublicSubnetTwo:
     Description: Public subnet two
     Value: !GetAtt VPC.Outputs.PublicSubnetTwo
     Export:
       Name: !Sub ${EnvironmentName}:PublicSubnetTwo1
+
+  #RDS private subnets
+  PrivateSubnetDbOne:
+    Description: Private DB subnet one
+    Value: !GetAtt VPC.Outputs.PrivateSubnetDbOne
+    Export:
+      Name: !Sub ${EnvironmentName}:PrivateSubnetDbOne1
+
+  PrivateSubnetDbTwo:
+    Description: Private DB subnet two
+    Value: !GetAtt VPC.Outputs.PrivateSubnetDbTwo
+    Export:
+      Name: !Sub ${EnvironmentName}:PrivateSubnetDbTwo1
+
   ECSCluster:
     Description: ECS Name Cluster
     Value: !Ref ECSCluster
     Export:
       Name: !Sub ${EnvironmentName}:ECSCluster1
-  Name:
-    Description: Stack Name
-    Value: !Ref AWS::StackName
+
+  LoadBalancerSecurityGroup:
+    Description: A security group used to allow to receive traffic
+    Value: !GetAtt  SecurityGroups.Outputs.LoadBalancerSecurityGroup'
     Export:
-      Name: !Sub ${EnvironmentName}:Name1
+      Name: !Sub ${EnvironmentName}:LoadBalancerSecurityGroup1
+
   ContainerSecurityGroup:
     Description: A security group used to allow containers to receive traffic
     Value: !GetAtt SecurityGroups.Outputs.ContainerSecurityGroup
     Export:
       Name: !Sub ${EnvironmentName}:ContainerSecurityGroup1
+  
+  RDSSecurityGroup:
+    Description: A security group used to allow containers to receive traffic
+    Value: !GetAtt SecurityGroups.Outputs.RDSSecurityGroup
+    Export:
+      Name: !Sub ${EnvironmentName}:RDSSecurityGroup1
+
   ECSTaskExecutionRoleName:
     Description: The ARN of the ECS role
     Value: !GetAtt RolesCluster.Outputs.ECSTaskExecutionRole
     Export:
       Name: !Sub ${EnvironmentName}:ECSTaskExecutionRole1
+  
