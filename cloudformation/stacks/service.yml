@@ -31,10 +31,6 @@ Parameters:
   SubnetB:
     Type: AWS::EC2::Subnet::Id
 
-  ServiceName:
-    Type: String
-    Default: ecs-service-sample
-
   ContainerPort:
     Type: Number
     Default: 80
@@ -78,7 +74,7 @@ Resources:
 
       ExecutionRoleArn: !Ref TaskExecutionRole
       ContainerDefinitions:
-        - Name: !Sub ${ClusterName}-service
+        - Name: !Ref ClusterName
           Image:  nginxdemos/hello 
           PortMappings:
             - ContainerPort: !Ref ContainerPort
@@ -141,7 +137,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: Listener
     Properties: 
-      ServiceName: !Sub ${ServiceName}-service
+      ServiceName: !Ref ClusterName
       Cluster: !Ref ClusterName
       TaskDefinition: !Ref TaskDefinition
       DeploymentConfiguration:
@@ -162,6 +158,6 @@ Resources:
             - !Ref ContainerSecurityGroup 
             # add a private security group
       LoadBalancers:
-        - ContainerName: !Sub ${ServiceName}-service
+        - ContainerName: !Ref ClusterName
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroup

@@ -284,6 +284,41 @@ Resources:
 
 ## ADD A ROUTE TABLE FOR RDS 
 
+  PrivateRdsRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - 
+         Key: Environment
+         Value: !Sub ${EnvironmentName}
+        - 
+         Key: Name
+         Value: !Sub ${Name}-private-rds-routetable
+        - 
+         Key: Project
+         Value: !Sub ${Name}
+
+  PrivateRdsRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRdsRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateRdsRouteTableAssociationOne:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRdsRouteTable
+      SubnetId: !Ref PrivateSubnetDbOne
+
+  PrivateRdsRouteTableTwoAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRdsRouteTable
+      SubnetId: !Ref PrivateSubnetDbTwo
+
+
 Outputs:
 
   VpcId:

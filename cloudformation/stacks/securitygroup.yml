@@ -44,6 +44,16 @@ Resources:
           FromPort: !Ref SGPort
           ToPort: !Ref SGPort
           CidrIp: 0.0.0.0/0
+      Tags:
+        - 
+         Key: Environment
+         Value:  !Sub ${EnvironmentName}
+        - 
+         Key: Name
+         Value: !Sub lb-${Name}-sg
+        - 
+         Key: Project
+         Value: !Sub ${Name}-${EnvironmentName}
   
   # add a private security group (attach load balancer)
   PrivateSecurityGroup:
@@ -57,6 +67,16 @@ Resources:
           FromPort: !Ref SGPort
           ToPort: !Ref SGPort
           SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - 
+         Key: Environment
+         Value:  !Sub ${EnvironmentName}
+        - 
+         Key: Name
+         Value: !Sub private-${Name}-sg
+        - 
+         Key: Project
+         Value: !Sub ${Name}-${EnvironmentName}
 
   # add a security group rds (attach private & ecs)
   RDSSecurityGroup:
@@ -70,6 +90,16 @@ Resources:
           SourceSecurityGroupId: !Ref PrivateSecurityGroup
         - IpProtocol: '-1' #all traffic
           SourceSecurityGroupId: !Ref ContainerSecurityGroup
+      Tags:
+        - 
+         Key: Environment
+         Value:  !Sub ${EnvironmentName}
+        - 
+         Key: Name
+         Value: !Sub rds-${Name}-sg
+        - 
+         Key: Project
+         Value: !Sub ${Name}-${EnvironmentName}
 
   ContainerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -86,7 +116,7 @@ Resources:
          Value:  !Sub ${EnvironmentName}
         - 
          Key: Name
-         Value: !Sub ${Name}-container-sg
+         Value: !Sub ecs-${Name}-sg
         - 
          Key: Project
          Value: !Sub ${Name}-${EnvironmentName}

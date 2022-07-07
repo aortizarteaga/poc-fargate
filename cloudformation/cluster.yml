@@ -89,7 +89,7 @@ Resources:
     Properties:
       TemplateURL: !Sub https://aaa-rbp-bucket.s3.amazonaws.com/securitygroup.yml
       Parameters:
-        Name: !Sub ${Project}-${Region}-${EnvironmentName}-sg
+        Name: !Sub ${Project}-${Region}-${EnvironmentName}
         EnvironmentName: !Ref EnvironmentName
         VPC: !GetAtt VPC.Outputs.VpcId 
 
@@ -117,7 +117,7 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: "Subnet Group for PostgreSQL database"
-      DBSubnetGroupName: !Sub rds-${Project}-${Region}-${EnvironmentName}-subnetGroup
+      DBSubnetGroupName: !Sub db-${Project}-${Region}-${EnvironmentName}-subnetGroup
       SubnetIds: 
         - !GetAtt VPC.Outputs.PrivateSubnetDbOne
         - !GetAtt VPC.Outputs.PrivateSubnetDbTwo
@@ -125,7 +125,7 @@ Resources:
   RDSDBInstance:
     Type: AWS::RDS::DBInstance
     Properties:
-      DBInstanceIdentifier: !Sub rds-postgre-${Project}-${Region}-${EnvironmentName}
+      DBInstanceIdentifier: !Sub db-postgre-${Project}-${Region}-${EnvironmentName}
       AllocatedStorage: 100
       DBInstanceClass: db.m5.4xlarge
       Engine: "postgres"
@@ -181,7 +181,7 @@ Outputs:
 
   LoadBalancerSecurityGroup:
     Description: A security group used to allow to receive traffic
-    Value: !GetAtt  SecurityGroups.Outputs.LoadBalancerSecurityGroup'
+    Value: !GetAtt  SecurityGroups.Outputs.LoadBalancerSecurityGroup
     Export:
       Name: !Sub ${EnvironmentName}:LoadBalancerSecurityGroup1
 
